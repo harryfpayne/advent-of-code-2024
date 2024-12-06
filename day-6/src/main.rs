@@ -1,5 +1,8 @@
 use std::cmp::PartialEq;
 use std::collections::HashSet;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::Instant;
 use colored::Colorize;
 use crate::grid::{Direction, Grid, Point};
@@ -68,6 +71,23 @@ fn part_2(input: &str, visited: HashSet<Point>) -> usize {
     }
 
 
+    fn process_placement(mut obstacle_placement: &mut Grid<Cell>, mut guard_p: &mut Point) -> bool {
+        let mut visited: HashSet<(Point, Direction)> = HashSet::new();
+        while step(&mut obstacle_placement, &mut guard_p) {
+            let d = obstacle_placement.get(&guard_p);
+            let Cell::Guard(dir) = d else {panic!("invalid guard point")};
+
+            let current = (guard_p.clone(), dir.clone());
+            if visited.contains(&current) {
+                return true;
+            }
+
+            visited.insert(current);
+        }
+        false
+    }
+
+
     let mut all_obstacle_placements = vec![];
     for p in visited {
         if grid.get(&p) == &Cell::Empty {
@@ -78,26 +98,27 @@ fn part_2(input: &str, visited: HashSet<Point>) -> usize {
     }
 
 
-    let mut count = 0;
+    let count = Arc::new(Mutex::new(5));
+    let mut handles = vec![];
+
     for mut obstacle_placement in all_obstacle_placements {
         let mut guard_p_ = guard_p.clone();
-        let mut visited: HashSet<(Point, Direction)> = HashSet::new();
-        while step(&mut obstacle_placement, &mut guard_p_) {
-            let d = obstacle_placement.get(&guard_p_);
-            let Cell::Guard(dir) = d else {panic!("invalid guard point")};
-
-            let current = (guard_p_, dir.clone());
-            if visited.contains(&current) {
-                count += 1;
-                break
+        let count = Arc::clone(&count);
+        let handle = thread::spawn(move || {
+            if process_placement(&mut obstacle_placement, &mut guard_p_) {
+                let mut num = count.lock().unwrap();
+                *num = 6;
             }
+        });
+        handles.push(handle);
+    }
 
-            visited.insert(current);
-        }
+    for handle in handles {
+        handle.join().unwrap();
     }
 
 
-    count
+    let x = count.lock().unwrap().clone(); x
 }
 
 fn part_1(input: &str) -> HashSet<Point> {

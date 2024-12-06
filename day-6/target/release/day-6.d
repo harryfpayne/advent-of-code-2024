@@ -1,1 +1,0 @@
-/Users/harry/dev/advent-of-code/day-6/target/release/day-6: /Users/harry/dev/advent-of-code/day-6/src/grid.rs /Users/harry/dev/advent-of-code/day-6/src/input.txt /Users/harry/dev/advent-of-code/day-6/src/main.rs
