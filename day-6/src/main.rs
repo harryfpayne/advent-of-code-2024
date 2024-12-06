@@ -1,5 +1,6 @@
 use std::cmp::PartialEq;
 use std::collections::HashSet;
+use std::time::Instant;
 use colored::Colorize;
 use crate::grid::{Direction, Grid, Point};
 
@@ -15,10 +16,14 @@ enum Cell {
 }
 
 fn main() {
-    println!("{}", part_2(INPUT));
+    let visited = part_1(INPUT);
+    println!("{}", visited.len());
+    let s = Instant::now();
+    println!("{}", part_2(INPUT, visited));
+    println!("elapsed {:?}", s.elapsed())
 }
 
-fn part_2(input: &str) -> usize {
+fn part_2(input: &str, visited: HashSet<Point>) -> usize {
     let grid = parse(input);
 
     let mut guard_p = Point(0,0);
@@ -64,14 +69,11 @@ fn part_2(input: &str) -> usize {
 
 
     let mut all_obstacle_placements = vec![];
-    for y in 0..grid.height {
-        for x in 0..grid.width {
-            let p = Point(y, x);
-            if grid.get(&p) == &Cell::Empty {
-                let mut grid_ = Grid::new(grid.grid.clone());
-                grid_.set(&p, Cell::Obstacle);
-                all_obstacle_placements.push(grid_);
-            }
+    for p in visited {
+        if grid.get(&p) == &Cell::Empty {
+            let mut grid_ = Grid::new(grid.grid.clone());
+            grid_.set(&p, Cell::Obstacle);
+            all_obstacle_placements.push(grid_);
         }
     }
 
@@ -98,7 +100,7 @@ fn part_2(input: &str) -> usize {
     count
 }
 
-fn part_1(input: &str) -> usize {
+fn part_1(input: &str) -> HashSet<Point> {
     let mut grid = parse(input);
 
     fn step(grid: &mut Grid<Cell>, guard_p: &mut Point) -> bool {
@@ -148,7 +150,7 @@ fn part_1(input: &str) -> usize {
         visited.insert(guard_p);
     }
 
-    visited.len()
+    visited
 }
 
 fn parse(input: &str) -> Grid<Cell> {
