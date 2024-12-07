@@ -7,9 +7,82 @@ const INPUT: &str = include_str!("input.txt");
 fn main() {
     let s = Instant::now();
     println!("{}", part_1(INPUT));
+    println!("elapsed: {:?}", s.elapsed());
+
+    let s = Instant::now();
     println!("{}", part_2(INPUT));
     println!("elapsed: {:?}", s.elapsed());
+
+    let s = Instant::now();
+    println!("{}", part_2_fast(INPUT));
+    println!("elapsed: {:?}", s.elapsed());
 }
+
+fn part_2_fast(input: &str) -> i64 {
+    type Operation = usize;
+    const ADD: Operation = 0;
+    const MUL: Operation = 1;
+    const CAT: Operation = 2;
+
+    let equations = parse(input);
+
+    fn get_nearest_power_of_10(value: i64) -> i64 {
+        if value == 1 {
+            return 10
+        }
+        10i64.pow((value as f64).log10().ceil() as u32)
+    }
+    fn get_valid_operations(total: &i64, value: &i64) -> [bool; 3] {
+        [
+            total >= value,
+            total % value == 0,
+            &(total % get_nearest_power_of_10(*value)) == value,
+        ]
+    }
+
+    fn recurse(total: &i64, values: Vec<i64>) -> bool {
+        if values.len() == 0 && total == &0 {
+            return true;
+        }
+        if values.len() == 0 || total == &0 {
+            return false;
+        }
+
+        let value = values[0];
+        let operations = get_valid_operations(&total, &values[0]);
+        if operations[ADD] {
+            if recurse(&(total - value), values[1..].to_vec()) {
+                return true;
+            }
+        }
+
+        if operations[MUL] {
+            if recurse(&(total / value), values[1..].to_vec()) {
+                return true;
+            }
+        }
+
+        if operations[CAT] {
+            if recurse(&((total - value) / get_nearest_power_of_10(value)), values[1..].to_vec()) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    let mut sum = 0;
+    for (total, mut values) in equations {
+        values.reverse();
+
+        if recurse(&total, values) {
+            sum += total;
+        }
+    }
+
+    sum
+}
+
 
 fn part_1(input: &str) -> i64 {
     let equations = parse(input);
