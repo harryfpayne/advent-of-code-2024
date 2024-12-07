@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::Instant;
 
 const INPUT: &str = include_str!("input.txt");
@@ -103,24 +105,31 @@ fn part_2(input: &str) -> i64 {
         }
     }
 
-    let mut sum = 0;
-    'equation_loop: for (total, numbers) in equations {
-        let mut operators = vec![0; numbers.len() - 1];
+    let mut sum = Arc::new(Mutex::new(0));
+    let mut handlers = Vec::new();
+    for (total, numbers) in equations {
+        let sum = Arc::clone(&sum);
+        let handle = thread::spawn(move || {
+            let mut operators = vec![0; numbers.len() - 1];
+            for _ in 0..3i64.pow((numbers.len() - 1) as u32) {
+                let total_ = compute(&numbers, &operators);
+                if total_ == total {
+                    *sum.lock().unwrap() += total_;
+                    return
+                }
 
-        for i in 0..3i64.pow((numbers.len() - 1) as u32) {
-            let total_ = compute(&numbers, &operators);
-            if total_ == total {
-                sum += total;
-                continue 'equation_loop
+                inc(&mut operators)
             }
+        });
 
-            inc(&mut operators)
-        }
+        handlers.push(handle);
     }
 
+    for handle in handlers {
+        handle.join().unwrap();
+    }
 
-
-    sum
+    let x = sum.lock().unwrap().clone(); x
 }
 
 fn parse(input: &str) -> Vec<(i64, Vec<i64>)> {
