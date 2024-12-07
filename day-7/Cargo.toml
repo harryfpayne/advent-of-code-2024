@@ -1,8 +1,6 @@
 [package]
-name = "day-6"
+name = "day-7"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-colored = "2.1.0"
-num-traits = "0.2.19"

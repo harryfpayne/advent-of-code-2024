@@ -1,6 +1,5 @@
 use std::cmp::PartialEq;
 use std::collections::HashSet;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Instant;
