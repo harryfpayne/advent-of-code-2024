@@ -1,0 +1,15 @@
+Register A: 23999685
+Register B: 0
+Register C: 0
+
+Program: 2,4, 1,1, 7,5, 1,5, 0,3, 4,4, 5,5, 3,0
+
+
+BST 4 B = A % 8
+BXL 1 B = B xor 1
+CDV 5 C = A / 2^B
+BXL 5 B = B xor 5
+ADV 3 A = A / 2^3
+BXC 4 B = B xor C
+OUT 5 out <- B % 8
+JNZ 0 Jump to 0 if A is 0
