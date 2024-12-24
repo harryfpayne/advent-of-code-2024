@@ -2,12 +2,12 @@ use std::ops::BitAnd;
 use std::thread;
 use std::time::Instant;
 use computer::*;
-use crate::computer_fast::BitMaskIterator;
+use crate::computer_fast::run;
 
 mod computer;
 mod computer_fast;
 
-const INPUT: &str = include_str!("input_test.txt");
+const INPUT: &str = include_str!("input.txt");
 
 fn vec_are_eq(a: &Vec<u8>, b: &Vec<u8>) -> bool {
     a.iter().zip(b.iter()).all(|(a, b)| a == b)
@@ -15,59 +15,65 @@ fn vec_are_eq(a: &Vec<u8>, b: &Vec<u8>) -> bool {
 
 fn main() {
     let s = Instant::now();
-    println!("{:?}", part_2());
+    println!("{:?}", part_1(INPUT));
+    println!("{:?}", part_2(INPUT));
     println!("result: {:?}", s.elapsed());
 }
 
-fn part_2() -> usize {
-    const TARGET: [i64; 16] = [2,4, 1,1, 7,5, 1,5, 0,3, 4,4, 5,5, 3,0];
-    const N: i64 = 164_532_461_596_349;
-    // const KNOWN_PATTERN: i64 = 0b101;
-    // const KNOWN_PATTERN: i64 = 0b11011010110111_0_10111101;
-    let mut one_mask = 0xFFFFFFFFFFFFF;
-    let mut zero_mask = 0;
+fn part_2(input: &str) -> i64 {
+    fn run_with(i: i64) -> Vec<i64> {
+        let mut a = i;
 
-
-    // less than 164532461596349
-    const I_THRESH: usize = 10;
-    'a: for n in BitMaskIterator::new() {
-        // let n = n_ << 3 | KNOWN_PATTERN;
-        // println!("({:040b})", n);
-
-        let mut i = 0;
-        let mut a = n;
-        let mut b = 0;
-        let mut c = 0;
-
-        while i < 16 {
-            if i >= I_THRESH {
-                one_mask = one_mask & n;
-                zero_mask = zero_mask | n;
-                println!("{}: {} \t\t ({:040b}) ({:040b}) ({:040b}) ", n, i, n, one_mask, zero_mask);
-            }
-
-            if a == 0 {
-                continue 'a;
-            }
-            let o = computer_fast::run(&mut a, &mut b, &mut c);
-            if o != TARGET[i] {
-                continue 'a;
-            } else {
-                i += 1
-            }
+        let mut o = vec![];
+        while a != 0 {
+            o.push(run(&mut a));
         }
-        return n as usize;
+        o
     }
 
-    0
+    fn rec(
+        seq: &Vec<i64>,
+        matching_index: usize,
+        i: i64,
+    ) -> Option<i64> {
+        let mut i = i;
+        loop { // Crazy that rust doesn't have normal for loop syntax
+            let o = run_with(i);
+            // println!("{} {} {:?}", matching_index, i, o);
+
+            if matching_index < seq.len() -1 {
+                if o[matching_index + 1] != seq[matching_index + 1] {
+                    // println!("I've exceeded the range");
+                    return None;
+                }
+            }
+
+            if o[matching_index] != seq[matching_index] {
+                i += 8i64.pow(matching_index as u32);
+            } else {
+                // println!("Found match for {}", matching_index);
+                if matching_index == 0 {
+                    // println!("Found end");
+                    return Some(i);
+                }
+                if let Some(j) = rec(seq, matching_index -1, i) {
+                    return Some(j)
+                }
+                // println!("Didn't find sub match");
+                i += 8i64.pow(matching_index as u32);
+            }
+        }
+    }
+
+    let computer = parse(input);
+    let mut seq = computer.instructions.iter().map(|i| *i as i64).collect::<Vec<i64>>();
+    let mut matching_index = seq.len() - 1;
+    let i = 8i64.pow(matching_index as u32);
+    rec(&seq, matching_index, i).unwrap()
 }
 
 fn part_1(input: &str) {
     'a: for i in 0..1 {
-        if i % 10_000 == 0 {
-            println!("{}", i);
-        }
-
         let mut computer = parse(input);
         computer.registers[0] = 117440;
 
@@ -75,19 +81,19 @@ fn part_1(input: &str) {
         let mut halted = false;
         while !halted {
             if !computer.step() {
-                println!("Halted");
+                // println!("Halted");
                 halted = true;
             }
-            println!("{:?}", computer);
+            // println!("{:?}", computer);
             if !vec_are_eq(&computer.instructions, &computer.output) {
-                println!("Invalid out");
+                // println!("Invalid out");
                 break
             }
             if computer.instructions.len() == computer.output.len() {
-                println!("i works {}", i)
+                // println!("i works {}", i)
             }
             if run_for > 10_000_000 {
-                println!("Run for too long");
+                // println!("Run for too long");
                 break;
             }
             run_for += 1;

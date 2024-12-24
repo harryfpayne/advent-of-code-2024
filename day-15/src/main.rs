@@ -1,147 +1,81 @@
+use std::time::Instant;
 use crate::grid::grid::{BCoord, Direction, Grid};
+use crate::part_1::part_1;
 
 mod grid;
 mod part_1;
 
-const INPUT: &str = include_str!("input_test.txt");
+const INPUT: &str = include_str!("input.txt");
 
 fn main() {
+    let s = Instant::now();
+    println!("{:?}", part_1(INPUT));
     println!("{:?}", part_2(INPUT));
+    println!("{:?}", s.elapsed())
 }
 
-fn part_2(input: &str) {
-    let (mut grid, directions) = parse(input);
+fn part_2(input: &str) -> usize {
+    let (mut grid, mut directions) = parse(input);
 
     fn move_to(grid: &mut Grid<Cell>, curr: &BCoord, next: &BCoord) {
         grid.set(next, *grid.get(&curr));
         grid.set(curr, Cell::Empty);
     }
 
-    fn can_move_boxes_rec(grid: &mut Grid<Cell>, curr: &BCoord, dir: &Direction, ignore_partner: bool) -> bool {
-        // println!("Looking at {} {}", curr.y, curr.x);
-        let next = curr.move_in(dir).unwrap();
-        let v = grid.get(&next);
-        // println!("Want to move to ({} {}) {:?}", next.y, next.x, v);
-        match v {
-            &Cell::Empty => {
-                // println!("It's empty moving");
-                true
-            },
-            &Cell::Wall => {
-                // println!("It's wall");
-                false
-            },
-            &Cell::BoxL => {
-                if dir == &Direction::R || dir == &Direction::L {
-                    let can_move = can_move_boxes_rec(grid, &next, dir, false);
-                    can_move
-                } else if ignore_partner {
-                    return can_move_boxes_rec(grid, &next, dir, false);
-                } else {
-                    let can_i_move = can_move_boxes_rec(grid, &next, dir, false);
-                    let curr_partner = curr.move_in(&Direction::R).unwrap();
-                    let can_partner_move = can_move_boxes_rec(grid, &curr_partner, dir, true);
-                    return can_i_move && can_partner_move
-                }
-            },
-            &Cell::BoxR => {
-                if dir == &Direction::R || dir == &Direction::L {
-                    let can_move = can_move_boxes_rec(grid, &next, dir, false);
-                    can_move
-                } else if ignore_partner {
-                    return can_move_boxes_rec(grid, &next, dir, false);
-                } else {
-                    let can_i_move = move_boxes_rec(grid, &next, dir, false);
-                    let curr_partner = curr.move_in(&Direction::L).unwrap();
-                    let can_partner_move = can_move_boxes_rec(grid, &curr_partner, dir, true);
-                    return can_i_move && can_partner_move;
-                }
-            },
-            &Cell::Robot => panic!("robot in box search"),
+    fn move_boxes(
+        grid: &mut Grid<Cell>,
+        current_position: &BCoord,
+        direction: &Direction,
+        edit_mode: bool,
+    ) -> bool {
+        let next = current_position.move_in(direction);
+        if next.is_none() {
+            return false
         }
-    }
+        let next = next.unwrap();
 
-    fn move_boxes_rec(grid: &mut Grid<Cell>, curr: &BCoord, dir: &Direction, ignore_partner: bool) -> bool {
-        // println!("Looking at {} {}", curr.y, curr.x);
-        let next = curr.move_in(dir).unwrap();
-        let v = grid.get(&next);
-        // println!("Want to move to ({} {}) {:?}", next.y, next.x, v);
-        match v {
-            &Cell::Empty => {
-                // println!("It's empty moving");
-                move_to(grid, curr, &next);
-                true
-            },
-            &Cell::Wall => {
-                // println!("It's wall");
-                false
-            },
-            &Cell::BoxL => {
-                println!("Moving a boxL");
-                if !can_move_boxes_rec(grid, &next, dir, ignore_partner) {
-                    println!("It can't be moved");
-                    return false
-                }
-                println!("It can be moved");
-                if dir == &Direction::R || dir == &Direction::L {
-                    println!("It's L/R");
-                    let can_move = move_boxes_rec(grid, &next, dir, false);
-                    if can_move {
-                        // println!("Moving");
-                        move_to(grid, curr, &next);
-                    }
-                    can_move
-                } else if ignore_partner {
-                    println!("My partner is being moved");
-                    return move_boxes_rec(grid, &next, dir, false);
-                } else {
-                    println!("I'm being moved {} {}", curr.y, curr.x);
-                    let can_i_move = move_boxes_rec(grid, &next, dir, false);
-                    println!("I can move: {}", can_i_move);
-                    let curr_partner = curr.move_in(&Direction::R).unwrap();
-                    let next_partner = curr_partner.move_in(dir).unwrap();
-                    println!("My partner movign to {} {}", next_partner.y, next_partner.x);
-                    let can_partner_move = move_boxes_rec(grid, &next_partner, dir, true);
-                    println!("My partner can move: {}", can_partner_move);
-
-                    if can_i_move && can_partner_move {
-                        println!("We moving");
-                        move_to(grid, curr, &next);
-                        move_to(grid, &curr_partner, &next_partner);
-                        return true
-                    }
-                    return false
-                }
-            },
-            &Cell::BoxR => {
-                if !can_move_boxes_rec(grid, &next, dir, ignore_partner) {
-                    return false
-                }
-
-                if dir == &Direction::R || dir == &Direction::L {
-                    let can_move = move_boxes_rec(grid, &next, dir, false);
-                    if can_move {
-                        // println!("Moving");
-                        move_to(grid, curr, &next);
-                    }
-                    can_move
-                } else if ignore_partner {
-                    return move_boxes_rec(grid, &next, dir, false);
-                } else {
-                    let can_i_move = move_boxes_rec(grid, &next, dir, false);
-                    let curr_partner = curr.move_in(&Direction::L).unwrap();
-                    let can_partner_move = move_boxes_rec(grid, &curr_partner, dir, true);
-
-                    if can_i_move && can_partner_move {
-                        move_to(grid, curr, &next);
-                        move_to(grid, &curr_partner, &curr_partner.move_in(dir).unwrap());
-                        return true
-                    }
-                    return false;
-                }
-            },
-            &Cell::Robot => panic!("robot in box search"),
+        let next_v = grid.get(&next);
+        if next_v == &Cell::Wall {
+            return false;
         }
+        if next_v != &Cell::BoxR && next_v != &Cell::BoxL {
+            if edit_mode {
+                move_to(grid, current_position, &next);
+            }
+            return true;
+        }
+
+        if next_v == &Cell::BoxR {
+            let can_move;
+            if direction == &Direction::L || direction == &Direction::R {
+                can_move = move_boxes(grid, &next, direction, edit_mode);
+            } else {
+                let can_i_move = move_boxes(grid, &next, direction, edit_mode);
+                let can_other_move = move_boxes(grid, &next.move_in(&Direction::L).unwrap(), direction, edit_mode);
+                can_move = can_i_move && can_other_move;
+            }
+            if edit_mode && can_move {
+                move_to(grid, current_position, &next);
+            }
+            return can_move
+        }
+
+        if next_v == &Cell::BoxL {
+            let can_move;
+            if direction == &Direction::L || direction == &Direction::R {
+                can_move = move_boxes(grid, &next, direction, edit_mode);
+            } else {
+                let can_i_move = move_boxes(grid, &next, direction, edit_mode);
+                let can_other_move = move_boxes(grid, &next.move_in(&Direction::R).unwrap(), direction, edit_mode);
+                can_move = can_i_move && can_other_move;
+            }
+            if edit_mode && can_move {
+                move_to(grid, current_position, &next);
+            }
+            return can_move;
+        }
+
+        false
     }
 
 
@@ -156,37 +90,30 @@ fn part_2(input: &str) {
             },
             Cell::Wall => {},
             Cell::BoxL => {
-                if move_boxes_rec(&mut grid, &current_position, &direction, false) {
+                if move_boxes(&mut grid, &current_position, &direction, false) {
+                    move_boxes(&mut grid, &current_position, &direction, true);
                     current_position = want_to_move_to;
                 }
             },
             Cell::BoxR => {
-                if move_boxes_rec(&mut grid, &current_position, &direction, false) {
+                if move_boxes(&mut grid, &current_position, &direction, false) {
+                    move_boxes(&mut grid, &current_position, &direction, true);
                     current_position = want_to_move_to;
                 }
             },
             Cell::Robot => panic!("trying to move to robot"),
         };
-
-        grid.print(|c| match c {
-            Cell::Empty => '.',
-            Cell::Wall => '#',
-            Cell::Robot => '@',
-            Cell::BoxL => '[',
-            Cell::BoxR => ']',
-        });
-        println!()
     }
 
 
     grid.grid.iter().enumerate().fold(0, |acc, (y, row)| {
         row.iter().enumerate().fold(acc, move |acc, (x, cell)| {
-            if cell != &Cell::BoxL || cell != &Cell::BoxR { acc }
+            if cell != &Cell::BoxL { acc }
             else {
                 acc + (y*100) + x
             }
         })
-    });
+    })
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
