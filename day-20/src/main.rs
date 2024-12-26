@@ -1,99 +1,121 @@
 use std::collections::HashMap;
+use std::time::Instant;
 use grid::grid::*;
 
 mod grid;
 
-const INPUT: &str = include_str!("input_test.txt");
+const INPUT: &str = include_str!("input.txt");
 
 fn main() {
+    let s = Instant::now();
     println!("{:?}", part_1(INPUT));
+    println!("{:?}", part_2(INPUT));
+    println!("{:?}", s.elapsed());
 }
 
-fn part_1(input: &str) -> (usize, usize) {
-    let (grid, start, end) = parse(input);
+fn get_distances(
+    grid: &Grid<bool>,
+    start: &BCoord,
+    end: &BCoord,
+) -> HashMap<BCoord, i32> {
+    let mut visited = HashMap::new();
+    let mut next = *start;
+    let mut distance = 0;
 
-    fn get_distances(
-        grid: &Grid<bool>,
-        start: &BCoord,
-        end: &BCoord,
-    ) -> HashMap<BCoord, i32> {
-        let mut visited = HashMap::new();
-        let mut next = *start;
-        let mut distance = 0;
+    while next != *end {
+        visited.insert(next, distance);
+        distance += 1;
 
-        while next != *end {
-            visited.insert(next, distance);
-            distance += 1;
-
-            for adj in next.orthogonal() {
-                if *grid.get(&adj) && !visited.contains_key(&adj) {
-                    next = adj;
-                    break
-                }
+        for adj in next.orthogonal() {
+            if *grid.get(&adj) && !visited.contains_key(&adj) {
+                next = adj;
+                break
             }
         }
-        visited.insert(next, distance);
+    }
+    visited.insert(next, distance);
 
-        visited
+    visited
+}
+
+fn get_shortcuts(
+    grid: &Grid<bool>,
+    distance_map: &HashMap<BCoord, i32>,
+    max_steps: i32,
+    p: &BCoord,
+) -> i32 {
+    let d = distance_map.get(p);
+    if !grid.get(&p) || d.is_none() {
+        return 0
+    }
+    let d = d.unwrap();
+
+    let mut count = 0;
+    for dy in -max_steps..=max_steps {
+        for dx in -max_steps..=max_steps {
+            let shortcut_distance = dx.abs() + dy.abs();
+            if shortcut_distance > max_steps || p.x as i32 + dx < 0 || p.y as i32 + dy < 0 {
+                continue
+            }
+            let next = p.new_from((p.y as i32 + dy) as usize, (p.x as i32 + dx) as usize);
+            if next.is_none() {
+                continue
+            }
+            let next = next.unwrap();
+            let next_d = distance_map.get(&next);
+            if !grid.get(&next) || next_d.is_none() {
+                continue
+            }
+            let next_d = next_d.unwrap();
+
+            let distance_saved = next_d - d - shortcut_distance;
+            if distance_saved >= 100 {
+                count += 1;
+            }
+        }
     }
 
-    let distances = get_distances(&grid, &start, &end);
+    count
+}
 
-    let mut m = HashMap::new();
-    let mut part1_count = 0;
-    let mut part2_count = 0;
+fn part_2(input: &str) -> i32 {
+    let (grid, start, end) = parse(input);
+    let distance_map = get_distances(&grid, &start, &end);
+
+    let mut count = 0;
     for y in 0..grid.height {
         for x in 0..grid.width {
             let p = BCoord::new(y, x, grid.height, grid.width);
-            if *grid.get(&p) == false {
+            if p == end {
                 continue
             }
 
-            let d = distances.get(&p);
-            if d.is_none() {
-                panic!("space not on path {:?}", p)
-            }
-            let d = d.unwrap();
-
-            for y in -40i32..=40 {
-                for x in -40i32..=40 {
-                    let y_ = p.y as i32 + y;
-                    let x_ = p.x as i32 + x;
-                    if y_ < 0 || y_ >= grid.height as i32 {
-                        continue
-                    }
-                    if x_ < 0 || x_ >= grid.width as i32 {
-                        continue
-                    }
-
-                    let n = p.new_from(y_ as usize , x_ as usize);
-                    if !grid.get(&n) {
-                        continue
-                    }
-                    let d1 = distances.get(&n).unwrap();
-                    let dist = p.manhattan_distance(&n).abs();
-
-                    let saved = *d1 - d - dist;
-
-                    if saved < 50 || dist == 0 {
-                        continue
-                    }
-
-                    if dist == 2 {
-                        part1_count += 1
-                    }
-                    if dist <= 20 {
-                        *m.entry(saved).or_insert(0) += 1;
-                        part2_count += 1
-                    }
-                }
-            }
+            let c = get_shortcuts(&grid, &distance_map, 20, &p);
+            count += c;
         }
     }
 
-    println!("{:?}", m);
+    count
+}
 
-    (part1_count, part2_count)
+fn part_1(input: &str) -> i32 {
+    let (grid, start, end) = parse(input);
+    let distance_map = get_distances(&grid, &start, &end);
+
+    let mut count = 0;
+    for y in 0..grid.height {
+        for x in 0..grid.width {
+            let p = BCoord::new(y, x, grid.height, grid.width);
+            if p == end {
+                continue
+            }
+
+            let c = get_shortcuts(&grid, &distance_map, 2, &p);
+            count += c;
+        }
+    }
+
+    count
 }
 
 fn parse(input: &str) -> (Grid<bool>, BCoord, BCoord) {

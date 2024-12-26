@@ -82,6 +82,7 @@ impl<T> Grid<T> {
 
 use std::cmp::Ordering;
 use std::fmt::{Display, Error, Formatter};
+use std::hash::Hash;
 use std::ops::{Mul};
 
 #[derive(PartialEq, PartialOrd, Eq, Copy, Clone, Debug, Hash)]
@@ -177,23 +178,26 @@ impl BCoord {
         BCoord { y, x, y_bounds, x_bounds }
     }
 
-    pub fn new_from(&self, y: usize, x: usize) -> BCoord {
-        BCoord { y, x, y_bounds: self.y_bounds, x_bounds: self.x_bounds }
+    pub fn new_from(&self, y: usize, x: usize) -> Option<BCoord> {
+        if y < 0 || x < 0 || y >= self.y_bounds || x >= self.x_bounds {
+            return None
+        }
+        Some(BCoord { y, x, y_bounds: self.y_bounds, x_bounds: self.x_bounds })
     }
 
     pub fn orthogonal(&self) -> Vec<BCoord> {
         let mut out = vec![];
         if self.y != 0 {
-            out.push(self.new_from(self.y - 1, self.x));
+            out.push(self.new_from(self.y - 1, self.x).unwrap());
         }
         if self.x != 0 {
-            out.push(self.new_from(self.y, self.x - 1));
+            out.push(self.new_from(self.y, self.x - 1).unwrap());
         }
         if self.y + 1 < self.y_bounds {
-            out.push(self.new_from(self.y + 1, self.x));
+            out.push(self.new_from(self.y + 1, self.x).unwrap());
         }
         if self.x + 1 < self.x_bounds {
-            out.push(self.new_from(self.y, self.x + 1));
+            out.push(self.new_from(self.y, self.x + 1).unwrap());
         }
         out
     }
@@ -218,7 +222,7 @@ impl BCoord {
                 if self.x + (x as usize) >= self.x_bounds {
                     continue
                 }
-                out.push(self.new_from(y as usize, x as usize));
+                out.push(self.new_from(y as usize, x as usize).unwrap());
             }
         }
 
@@ -234,10 +238,10 @@ impl BCoord {
             return None
         }
 
-        Some(self.new_from(
+        self.new_from(
             (self.y as i64 - (direction.imag as i64)) as usize,
             (self.x as i64 + (direction.real as i64)) as usize,
-        ))
+        )
     }
 
     pub fn manhattan_distance(&self, other: &BCoord) -> i32 {

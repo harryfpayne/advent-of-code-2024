@@ -8,114 +8,140 @@
 +---+---+---+
     | 0 | A |
     +---+---+
- */
-use std::collections::HashMap;
-use std::fmt::{Debug, Formatter, Pointer};
-use *;
-use crate::number_pad::Direction::*;
 
+    +---+---+
+    | ^ | A |
++---+---+---+
+| < | v | > |
++---+---+---+
+ */
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct Key {
     y: i8,
     x: i8,
 }
-
-#[derive(Clone, Hash, Eq, PartialEq)]
-pub enum Direction {
-    U, D, L, R, A
-}
-
-impl Debug for Direction {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Direction::U => write!(f, "^"),
-            Direction::D => write!(f, "v"),
-            Direction::L => write!(f, "<"),
-            Direction::R => write!(f, ">"),
-            Direction::A => write!(f, "A"),
+impl Key {
+    fn apply(&self, dir: &Key) -> Key {
+        Key {
+            y: self.y + dir.y,
+            x: self.x + dir.x,
         }
     }
 }
 
-
-pub fn get_number_key(i: &i8) -> Key {
-    match i {
-        7 => Key{x: 0, y: 0},
-        8 => Key{x: 1, y: 0},
-        9 => Key{x: 2, y: 0},
-        4 => Key{x: 0, y: 1},
-        5 => Key{x: 1, y: 1},
-        6 => Key{x: 2, y: 1},
-        1 => Key{x: 0, y: 2},
-        2 => Key{x: 1, y: 2},
-        3 => Key{x: 2, y: 2},
-        0 => Key{x: 1, y: 3},
-        -1 => Key{x: 2, y: 3},
+pub fn get_num_position(c: &char) -> Key {
+    match c {
+        '7' => Key { x: 0, y: 0 },
+        '8' => Key { x: 1, y: 0 },
+        '9' => Key { x: 2, y: 0 },
+        '4' => Key { x: 0, y: 1 },
+        '5' => Key { x: 1, y: 1 },
+        '6' => Key { x: 2, y: 1 },
+        '1' => Key { x: 0, y: 2 },
+        '2' => Key { x: 1, y: 2 },
+        '3' => Key { x: 2, y: 2 },
+        '0' => Key { x: 1, y: 3 },
+        'A' => Key { x: 2, y: 3 },
         _ => panic!("invalid key"),
     }
 }
 
-fn get_robot_key(d: &Direction) -> Key {
-    match d {
-        Direction::U => Key{y: 0, x: 1},
-        Direction::A => Key{y: 0, x: 2},
-        Direction::L => Key{y: 1, x: 0},
-        Direction::D => Key{y: 1, x: 1},
-        Direction::R => Key{y: 1, x: 2},
+pub fn get_dir_position(c: &char) -> Key {
+    match c {
+        '^' => Key { x: 1, y: 0 },
+        'A' => Key { x: 2, y: 0 },
+        '<' => Key { x: 0, y: 1 },
+        'v' => Key { x: 1, y: 1 },
+        '>' => Key { x: 2, y: 1 },
+        _ => panic!("invalid key"),
     }
 }
 
-pub fn get_number_sequence(start: &i8, end: &i8) -> Vec<Direction> {
-    let s = get_number_key(start);
-    let e = get_number_key(end);
-
-    let x = e.x - s.x;
-    let y = e.y - s.y;
-
-    let mut moves = vec![];
-    if y > 0 {
-        moves.append(&mut vec![Direction::D; y as usize])
-    } else if y < 0 {
-        moves.append(&mut vec![Direction::U; (-y) as usize])
+fn get_dir_offset(c: &char) -> Key {
+    match c {
+        '^' => Key { x: 0, y: -1 },
+        'v' => Key { x: 0, y: 1 },
+        '<' => Key { x: -1, y: 0 },
+        '>' => Key { x: 1, y: 0 },
+        _ => panic!("invalid direction"),
     }
-
-    if x > 0 {
-        moves.append(&mut vec![Direction::R; x as usize])
-    } else if x < 0 {
-        moves.append(&mut vec![Direction::L; (-x) as usize])
-    }
-
-    if s.x == 0 {
-        moves.reverse()
-    }
-
-    moves.push(Direction::A);
-    moves
 }
 
-pub fn get_robot_sequence(start: &Direction, end: &Direction) -> Vec<Direction> {
-    let s = get_robot_key(start);
-    let e = get_robot_key(end);
+const NUM_DEAD_CELL: Key = Key{y: 3, x: 0};
+const DIR_DEAD_CELL: Key = Key{y: 0, x: 0};
 
-    let x = e.x - s.x;
-    let y = e.y - s.y;
+fn follow_path(
+    start: &Key,
+    dead_cell: &Key,
+    da: i8,
+    db: i8,
+    a_dir_char: &char,
+    b_dir_char: &char,
+) -> Option<String> {
+    let a_dir = get_dir_offset(a_dir_char);
+    let b_dir = get_dir_offset(b_dir_char);
 
-    let mut moves = vec![];
-    if y > 0 {
-        moves.append(&mut vec![Direction::D; y as usize])
-    } else if y < 0 {
-        moves.append(&mut vec![Direction::U; (-y) as usize])
+    let mut seq = String::new();
+    let mut curr = start.clone();
+    for a in 0..da.abs() {
+        curr = curr.apply(&a_dir);
+        seq.push(*a_dir_char);
+        if &curr == dead_cell {
+            return None
+        }
     }
 
-    if x > 0 {
-        moves.append(&mut vec![Direction::R; x as usize])
-    } else if x < 0 {
-        moves.append(&mut vec![Direction::L; (-x) as usize])
+    for b in 0..db.abs() {
+        curr = curr.apply(&b_dir);
+        seq.push(*b_dir_char);
+        if &curr == dead_cell {
+            return None
+        }
     }
 
-    if s.x == 0 {
-        moves.reverse()
-    }
+    seq.push('A');
 
-    moves.push(Direction::A);
-    moves
+    Some(seq)
 }
+
+pub fn find_shortest_paths(start: &Key, end: &Key, num_mode: bool) -> Vec<String> {
+    if start == end {
+        return vec!["A".to_string()]
+    }
+    let dy = end.y - start.y;
+    let dx = end.x - start.x;
+
+    let y_dir_char = if dy > 0 { 'v' } else { '^' };
+    let x_dir_char = if dx > 0 { '>' } else { '<' };
+    let dead_cell = if num_mode {NUM_DEAD_CELL} else {DIR_DEAD_CELL};
+
+    let path1 = if dy.abs() > 0 {
+        follow_path(
+            &start,
+            &dead_cell,
+            dy,
+            dx,
+            &y_dir_char,
+            &x_dir_char
+        )
+    } else {
+        None
+    };
+    let path2 = if dx.abs() > 0 {
+        follow_path(
+            &start,
+            &dead_cell,
+            dx,
+            dy,
+            &x_dir_char,
+            &y_dir_char,
+        )
+    } else {
+        None
+    };
+
+    vec![path1, path2].into_iter().filter_map(|x| x).collect()
+}
+
+
+
